@@ -1,0 +1,15 @@
+# CODEOWNERS: who GitHub requests reviews from for each path.
+# The LAST matching line wins, so keep the broad rule first.
+# With "Require review from Code Owners" enabled on main, approval from
+# ANY ONE listed owner satisfies the rule (the PR author cannot approve their own PR).
+
+# Default: any of us can review anything
+*                       @perani-g @ngondaa @Tanthwe77
+
+# Database schema and migrations (shared tables: announce in chat first, see CONTRIBUTING.md)
+/db/migrations/         @perani-g @ngondaa @Tanthwe77
+
+# Process, CI and security files
+/.github/               @perani-g @ngondaa @Tanthwe77
+/CONTRIBUTING.md        @perani-g @ngondaa @Tanthwe77
+/SECURITY.md            @perani-g @ngondaa @Tanthwe77
