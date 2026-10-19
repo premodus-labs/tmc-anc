@@ -54,7 +54,7 @@ The database schema is the source of truth for the data model.
 - Migrations live in `db/migrations/`, numbered and **forward-only**: `0002_add_patient_index.sql`.
 - **Never edit a migration that has been merged.** Add a new one.
 - Every migration must apply cleanly to an empty database and to the current state. CI checks this.
-- Changes to **shared tables** (`patient`, `pregnancy`, `anc_visit`, lookups) must be **announced in the team chat before you write the migration** and need approval from **all** developers (enforced by CODEOWNERS).
+- Changes to **shared tables** (`patient`, `pregnancy`, `anc_visit`, lookups) must be **announced in the team chat before you write the migration**, so the whole team can object or adjust. The migration PR then needs review from a teammate (CODEOWNERS requests it automatically and blocks the merge until one owner approves). Link the chat discussion in the PR if there was one.
 - Number clash (two PRs both create `0005`)? Whoever merges second renumbers.
 - Keep triggers, views and constraints in migrations too, not applied by hand.
 
