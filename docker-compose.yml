@@ -1,0 +1,28 @@
+# Local development services: PostgreSQL only.
+# The Laravel API and Next.js app run directly on your machine (see README).
+#
+#   docker compose up -d db     start the database
+#   docker compose down         stop it (data kept)
+#   docker compose down -v      stop it and DELETE the local data
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-anc}
+      POSTGRES_USER: ${DB_USERNAME:-anc_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_locally}
+      TZ: UTC
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
