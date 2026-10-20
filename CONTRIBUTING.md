@@ -51,11 +51,24 @@ Short, imperative, with ticket ID: `ANC-12: Add patient registration form`.
 
 The database schema is the source of truth for the data model.
 
-- Migrations live in `db/migrations/`, numbered and **forward-only**: `0002_add_patient_index.sql`.
-- **Never edit a migration that has been merged.** Add a new one.
-- Every migration must apply cleanly to an empty database and to the current state. CI checks this.
+- We use **Laravel migrations** in `backend/database/migrations/` (create them with `php artisan make:migration`). Apply them with `make db-migrate`, check them with `make db-status`.
+- **Simple changes** (add a column, add an index) can use Laravel's schema builder.
+- **Anything the schema builder can't express** (triggers, views, partial unique indexes, generated columns, CHECK constraints, functions) is written as SQL in `backend/database/sql/<same name as the migration>.sql`, and the migration runs it:
+  ```php
+  public function up(): void
+  {
+      DB::unprepared(file_get_contents(database_path('sql/2026_10_20_000001_init_anc_schema.sql')));
+  }
+
+  public function down(): void {} // forward-only
+  ```
+  Don't mix styles within one migration.
+- Our existing schema is the first migration (`init_anc_schema`) with its SQL in `backend/database/sql/`.
+- **Migrations are forward-only.** Never edit a migration that has been merged, because other developers' databases have already run it. Add a new one. Leave `down()` empty.
+- Every migration must apply cleanly to an empty database and on top of the current state. CI checks this with `php artisan migrate --seed` on a fresh PostgreSQL.
+- Eloquent must not write generated or trigger-maintained columns. Mark them read-only in the model.
 - Changes to **shared tables** (`patient`, `pregnancy`, `anc_visit`, lookups) must be **announced in the team chat before you write the migration**, so the whole team can object or adjust. The migration PR then needs review from a teammate (CODEOWNERS requests it automatically and blocks the merge until one owner approves). Link the chat discussion in the PR if there was one.
-- Number clash (two PRs both create `0005`)? Whoever merges second renumbers.
+- Two PRs touching the same table or SQL file? Whoever merges second rebases, re-runs `make db-reset`, and fixes any conflict before merging. Laravel's timestamp names rarely clash, but ordering still matters.
 - Keep triggers, views and constraints in migrations too, not applied by hand.
 
 ## 5. Definition of Ready (a story may enter a sprint when...)
