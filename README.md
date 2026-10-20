@@ -8,67 +8,92 @@ The system tracks women currently in antenatal care, their next visit and expect
 
 > **Important:** this system handles health data. Read [SECURITY.md](SECURITY.md) before contributing. Real patient data never goes into this repository or into dev/test environments.
 
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Frontend | Next.js (React, TypeScript) in `frontend/` |
+| Backend API | Laravel (PHP) in `backend/` |
+| Database | PostgreSQL 16 |
+| Migrations | Laravel migrations, with raw SQL for triggers, views and constraints |
+
+Why these choices: [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md).
+
 ## Core idea
 
-A woman (`patient`) exists once. All clinical data hangs off her `pregnancy`. The database design is in [`docs/data-model-v2.md`](docs/data-model-v2.md) and the schema in [`db/migrations/0001_init.sql`](db/migrations/0001_init.sql).
+A woman (`patient`) exists once. All clinical data hangs off her `pregnancy`. The database design is in [`docs/data-model-v2.md`](docs/data-model-v2.md). The schema is the first migration, with its SQL in `backend/database/sql/`.
 
 ## Prerequisites
 
-> TODO: fill in once the stack is chosen (see `docs/decisions/0001-stack.md`).
-
 - Git
-- Docker and Docker Compose (for local PostgreSQL 15+)
-- `<language runtime and version>`
-- `<package manager>`
+- Docker and Docker Compose (runs PostgreSQL)
+- PHP 8.3+ and Composer
+- Node.js 22+ and npm
+- `make` (optional, but the commands below use it)
 
 ## Getting started
-
-> TODO: replace the placeholder commands once the stack is chosen. Goal: a new developer is running locally in under 10 minutes.
 
 ```bash
 # 1. Clone
 git clone <repo-url>
 cd <repo-name>
 
-# 2. Configure environment
-cp .env.example .env          # then edit values if needed
-
-# 3. Start the database
+# 2. Start PostgreSQL
+cp .env.example .env                       # database settings for Docker
 docker compose up -d db
 
-# 4. Apply migrations
-<migration command>
+# 3. Backend (once backend/ exists)
+cd backend
+cp .env.example .env                       # use the same DB_* values as the root .env
+composer install
+php artisan key:generate
+php artisan migrate --seed                 # create tables, load fake seed data
+php artisan serve
 
-# 5. Load fake seed data (never real patient data)
-<seed command>
+# 4. Frontend (once frontend/ exists), in another terminal
+cd frontend && npm install && npm run dev
+```
 
-# 6. Start the app
-<run command>
+Goal: a new developer is running locally in under 10 minutes. If a step is wrong or missing, fix this file in your PR.
+
+## Useful commands
+
+```bash
+make help           # list all commands
+make db-migrate     # apply pending migrations
+make db-status      # show which migrations have run
+make db-reset       # destroy and rebuild the local database (migrate + seed)
 ```
 
 ## Running tests
 
 ```bash
-<test command>
+cd backend && php artisan test
+cd frontend && npm test
 ```
+
+CI runs these on every PR, plus a migration check against an empty database.
 
 ## Repository layout
 
-> TODO: adjust to the chosen stack.
-
 ```
-.github/            PR template, issue templates, CI workflows, CODEOWNERS
-db/migrations/      Numbered, forward-only SQL migrations
-db/seed/            Fake seed data for development and tests
-docs/               Data model, conventions, decision records
-docs/decisions/     Architecture decision records (ADRs)
+.github/                    PR template, issue templates, CI workflow, CODEOWNERS
+backend/                    Laravel API
+backend/database/migrations/  Laravel migrations (forward-only)
+backend/database/sql/       SQL run by migrations (triggers, views, constraints)
+backend/database/seeders/   Fake seed data for development and tests
+frontend/                   Next.js app
+docs/                       Data model, conventions, decision records
+docs/decisions/             Architecture decision records (ADRs)
+docker-compose.yml          Local PostgreSQL
+Makefile                    Shortcuts for database tasks
 ```
 
 ## How we work
 
 - Process: Scrum, with a mini-SDLC per sprint. See [CONTRIBUTING.md](CONTRIBUTING.md).
 - Each developer owns a feature slice end to end (schema, API, UI).
-- Schema changes go through numbered migrations only.
+- Schema changes go through migrations only, never by hand.
 
 ## Documentation
 
