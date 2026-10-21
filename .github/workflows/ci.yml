@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Applies every migration to an EMPTY PostgreSQL, seeds it, then runs the tests.
+  # Catches schema conflicts between slices.
+  # Steps are skipped until backend/ exists (after the Sprint 0 walking skeleton),
+  # so this job passes from day one and can be a required check immediately.
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: anc
+          POSTGRES_USER: anc_app
+          POSTGRES_PASSWORD: ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U anc_app -d anc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: anc
+      DB_USERNAME: anc_app
+      DB_PASSWORD: ci_password
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        if: hashFiles('backend/composer.json') != ''
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_pgsql, mbstring
+          coverage: none
+
+      - name: Install dependencies
+        if: hashFiles('backend/composer.json') != ''
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Code style (Laravel Pint)
+        if: hashFiles('backend/composer.json') != ''
+        run: ./vendor/bin/pint --test
+
+      - name: Migrate empty database and seed
+        if: hashFiles('backend/composer.json') != ''
+        run: php artisan migrate --force --seed
+
+      - name: Tests
+        if: hashFiles('backend/composer.json') != ''
+        run: php artisan test
+
+  # Steps are skipped until frontend/ exists.
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: hashFiles('frontend/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        if: hashFiles('frontend/package.json') != ''
+        run: npm ci
+
+      - name: Lint
+        if: hashFiles('frontend/package.json') != ''
+        run: npm run lint
+
+      - name: Type check
+        if: hashFiles('frontend/package.json') != ''
+        run: npx tsc --noEmit
+
+      - name: Test
+        if: hashFiles('frontend/package.json') != ''
+        run: npm test --if-present
+
+      - name: Build
+        if: hashFiles('frontend/package.json') != ''
+        run: npm run build
+
+  # Fails the PR if a secret is committed.
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
