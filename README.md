@@ -21,7 +21,7 @@ Why these choices: [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md).
 
 ## Core idea
 
-A woman (`patient`) exists once. All clinical data hangs off her `pregnancy`. The database design is in [`docs/data-model-v2.md`](docs/data-model-v2.md). The schema is the first migration, with its SQL in `backend/database/sql/`.
+A woman (`patient`) exists once. All clinical data hangs off her `pregnancy`. The database design is in [`docs/data-model.md`](docs/data-model.md). The schema is the first migration, with its SQL in `backend/database/sql/`.
 
 ## Prerequisites
 
