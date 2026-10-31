@@ -50,7 +50,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Clinic shifts are up to 12 hours; staff log in again after that.
+    'expiration' => env('SANCTUM_EXPIRATION', 720),
 
     /*
     |--------------------------------------------------------------------------

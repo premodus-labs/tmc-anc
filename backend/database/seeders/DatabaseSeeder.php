@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\AppUser;
 use App\Models\Patient;
-use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
 
@@ -17,22 +16,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $permissions = collect([
-            'patient.view' => 'View patient records',
-            'patient.create' => 'Register patients',
-            'patient.update' => 'Edit patient details',
-        ])->map(fn ($description, $code) => Permission::firstOrCreate(
-            ['code' => $code],
-            ['description' => $description],
-        ));
+        $this->call(AccessControlSeeder::class);
 
-        $admin = Role::firstOrCreate(['code' => 'admin'], ['name' => 'Administrator']);
-        $admin->permissions()->syncWithoutDetaching($permissions->pluck('id'));
+        // Dev logins, all with password "password": one user per role
+        $users = Role::all()->mapWithKeys(function (Role $role) {
+            $user = AppUser::factory()->create(['username' => $role->code === 'admin' ? 'admin' : $role->code]);
+            $user->roles()->attach($role);
 
-        // Dev login: admin / password
-        $user = AppUser::factory()->create(['username' => 'admin']);
-        $user->roles()->attach($admin);
+            return [$role->code => $user];
+        });
 
-        Patient::factory(20)->create(['created_by' => $user->id]);
+        Patient::factory(20)->create(['created_by' => $users['receptionist']->id]);
     }
 }

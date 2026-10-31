@@ -67,4 +67,28 @@ class AuthTest extends TestCase
 
         $this->getJson('/api/v1/auth/me')->assertJsonPath('data.id', $user->id);
     }
+
+    public function test_deactivated_user_is_locked_out_with_an_existing_token(): void
+    {
+        $user = AppUser::factory()->create(['username' => 'nurse1']);
+
+        $token = $this->postJson('/api/v1/auth/login', ['username' => 'nurse1', 'password' => 'password'])
+            ->json('token');
+
+        $user->update(['is_active' => false]);
+
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+    }
+
+    public function test_token_expires_after_the_configured_lifetime(): void
+    {
+        AppUser::factory()->create(['username' => 'nurse1']);
+
+        $token = $this->postJson('/api/v1/auth/login', ['username' => 'nurse1', 'password' => 'password'])
+            ->json('token');
+
+        $this->travel(config('sanctum.expiration') + 1)->minutes();
+
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+    }
 }
