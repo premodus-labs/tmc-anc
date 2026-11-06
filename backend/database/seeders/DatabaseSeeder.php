@@ -2,24 +2,34 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\AppUser;
+use App\Models\Patient;
+use App\Models\Role;
+use App\Models\Staff;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
+    // Model events stay on: Patient assigns patient_number in its creating hook.
 
     /**
-     * Seed the application's database.
+     * Seed the application's database with fake dev data. Never real data.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call(AccessControlSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Dev logins, all with password "password": one user per role
+        $users = Role::all()->mapWithKeys(function (Role $role) {
+            $user = AppUser::factory()->create(['username' => $role->code === 'admin' ? 'admin' : $role->code]);
+            $user->roles()->attach($role);
+
+            return [$role->code => $user];
+        });
+
+        // Staff without a login yet, to try creating users
+        Staff::factory(5)->create();
+
+        Patient::factory(20)->create(['created_by' => $users['receptionist']->id]);
     }
 }
