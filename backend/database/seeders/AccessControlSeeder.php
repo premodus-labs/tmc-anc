@@ -19,6 +19,8 @@ class AccessControlSeeder extends Seeder
         'patient.view' => 'View patient records',
         'patient.create' => 'Register patients',
         'patient.update' => 'Edit patient details',
+        'user.view' => 'View staff logins and roles',
+        'user.manage' => 'Create logins, assign roles, deactivate and reset passwords',
     ];
 
     /**

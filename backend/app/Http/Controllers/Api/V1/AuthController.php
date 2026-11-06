@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\ChangePasswordRequest;
 use App\Http\Requests\V1\LoginRequest;
 use App\Http\Resources\V1\AuthUserResource;
 use App\Models\AppUser;
@@ -51,6 +52,29 @@ class AuthController extends Controller
     public function logout(Request $request): Response
     {
         $request->user()->currentAccessToken()->delete();
+
+        return response()->noContent();
+    }
+
+    /**
+     * Revoke every token this user holds, logging them out on all devices.
+     */
+    public function logoutAll(Request $request): Response
+    {
+        $request->user()->tokens()->delete();
+
+        return response()->noContent();
+    }
+
+    /**
+     * Change your own password. Other devices are logged out; this token keeps working.
+     */
+    public function changePassword(ChangePasswordRequest $request): Response
+    {
+        $user = $request->user();
+
+        $user->update(['password_hash' => $request->validated('password')]);
+        $user->tokens()->whereKeyNot($user->currentAccessToken()->getKey())->delete();
 
         return response()->noContent();
     }

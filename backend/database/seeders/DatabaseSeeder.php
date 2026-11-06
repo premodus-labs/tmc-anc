@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\AppUser;
 use App\Models\Patient;
 use App\Models\Role;
+use App\Models\Staff;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -25,6 +26,9 @@ class DatabaseSeeder extends Seeder
 
             return [$role->code => $user];
         });
+
+        // Staff without a login yet, to try creating users
+        Staff::factory(5)->create();
 
         Patient::factory(20)->create(['created_by' => $users['receptionist']->id]);
     }

@@ -62,6 +62,7 @@ class AppUser extends Authenticatable
     {
         return once(fn () => Permission::query()
             ->whereHas('roles.users', fn ($q) => $q->whereKey($this->getKey()))
+            ->orderBy('code')
             ->pluck('code')
             ->all());
     }
