@@ -17,6 +17,14 @@ class UpdateUserRequest extends FormRequest
             : $this->user()->can('update', $target);
     }
 
+    // Lowercase so "MBanda" and "mbanda" cannot both exist
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->username)) {
+            $this->merge(['username' => mb_strtolower($this->username)]);
+        }
+    }
+
     /**
      * Partial updates: only the fields sent are validated and changed.
      */

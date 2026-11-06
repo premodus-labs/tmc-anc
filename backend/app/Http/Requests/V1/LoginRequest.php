@@ -6,6 +6,14 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class LoginRequest extends FormRequest
 {
+    // Usernames are stored lowercase, so "Nurse1" logs in as "nurse1"
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->username)) {
+            $this->merge(['username' => mb_strtolower($this->username)]);
+        }
+    }
+
     public function rules(): array
     {
         return [

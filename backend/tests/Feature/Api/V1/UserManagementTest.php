@@ -71,6 +71,108 @@ class UserManagementTest extends TestCase
             ->assertJsonPath('errors.staff_id.0', 'This staff member already has a login.');
     }
 
+    public function test_usernames_are_stored_lowercase_and_unique_regardless_of_case(): void
+    {
+        $this->actingAsAdmin();
+        AppUser::factory()->create(['username' => 'mbanda']);
+
+        $this->postJson('/api/v1/users', [
+            'staff_id' => Staff::factory()->create()->id,
+            'username' => 'MBanda',
+            'password' => 'Welcome123',
+        ])->assertUnprocessable()->assertJsonValidationErrors('username');
+
+        $this->postJson('/api/v1/users', [
+            'staff_id' => Staff::factory()->create()->id,
+            'username' => 'JPhiri',
+            'password' => 'Welcome123',
+        ])->assertCreated()->assertJsonPath('data.username', 'jphiri');
+    }
+
+    public function test_new_user_without_roles_can_log_in_but_has_no_permissions(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/v1/users', [
+            'staff_id' => Staff::factory()->create()->id,
+            'username' => 'newstaff',
+            'password' => 'Welcome123',
+        ])->assertCreated()->assertJsonCount(0, 'data.roles');
+
+        $this->app['auth']->forgetGuards();
+        $this->postJson('/api/v1/auth/login', ['username' => 'newstaff', 'password' => 'Welcome123'])
+            ->assertOk()
+            ->assertJsonPath('user.permissions', []);
+    }
+
+    public function test_create_rejects_unknown_staff(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/v1/users', ['staff_id' => 9999, 'username' => 'ghost', 'password' => 'Welcome123'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('staff_id');
+    }
+
+    public function test_shows_a_user_and_404s_for_a_missing_one(): void
+    {
+        $this->actingAsAdmin();
+        $user = AppUser::factory()->create(['username' => 'mbanda']);
+
+        $this->getJson("/api/v1/users/{$user->id}")
+            ->assertOk()
+            ->assertJsonPath('data.username', 'mbanda')
+            ->assertJsonMissingPath('data.password_hash');
+
+        $this->getJson('/api/v1/users/9999')->assertNotFound();
+    }
+
+    public function test_reactivated_user_can_log_in_again(): void
+    {
+        $this->actingAsAdmin();
+        $user = AppUser::factory()->inactive()->create(['username' => 'nurse1']);
+
+        $this->patchJson("/api/v1/users/{$user->id}", ['is_active' => true])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', true);
+
+        $this->app['auth']->forgetGuards();
+        $this->postJson('/api/v1/auth/login', ['username' => 'nurse1', 'password' => 'password'])->assertOk();
+    }
+
+    public function test_reset_password_must_be_confirmed_and_strong(): void
+    {
+        $this->actingAsAdmin();
+        $user = AppUser::factory()->create();
+
+        $this->putJson("/api/v1/users/{$user->id}/password", ['password' => 'short', 'password_confirmation' => 'other'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
+    }
+
+    public function test_user_view_alone_is_read_only(): void
+    {
+        $viewer = AppUser::factory()->withPermissions('user.view')->create();
+        Sanctum::actingAs($viewer);
+        $other = AppUser::factory()->create();
+
+        $this->getJson('/api/v1/users')->assertOk();
+        $this->getJson("/api/v1/users/{$other->id}")->assertOk();
+        $this->getJson('/api/v1/roles')->assertOk();
+        $this->getJson('/api/v1/staff')->assertOk();
+
+        $this->postJson('/api/v1/users', [
+            'staff_id' => Staff::factory()->create()->id,
+            'username' => 'sneaky',
+            'password' => 'Welcome123',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/users/{$other->id}", ['username' => 'renamed'])->assertForbidden();
+        $this->putJson("/api/v1/users/{$other->id}/password", [
+            'password' => 'Reset12345',
+            'password_confirmation' => 'Reset12345',
+        ])->assertForbidden();
+    }
+
     public function test_lists_and_searches_users(): void
     {
         $this->actingAsAdmin();

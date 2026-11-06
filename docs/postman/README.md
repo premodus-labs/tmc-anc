@@ -1,5 +1,8 @@
 # Testing the API with Postman
 
+For a step-by-step walkthrough of auth and registering logins, see
+[../testing/postman-guide.md](../testing/postman-guide.md).
+
 `tmc-anc-api.postman_collection.json` exercises auth, user administration and
 patients end to end. Every request has tests, and login requests save the
 bearer token for the requests after them.

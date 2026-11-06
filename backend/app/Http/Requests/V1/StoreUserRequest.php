@@ -14,6 +14,14 @@ class StoreUserRequest extends FormRequest
         return $this->user()->can('create', AppUser::class);
     }
 
+    // Lowercase so "MBanda" and "mbanda" cannot both exist
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->username)) {
+            $this->merge(['username' => mb_strtolower($this->username)]);
+        }
+    }
+
     public function rules(): array
     {
         return [
