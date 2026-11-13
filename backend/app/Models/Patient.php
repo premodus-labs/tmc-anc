@@ -6,6 +6,7 @@ use Database\Factories\PatientFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Patient extends Model
@@ -43,6 +44,11 @@ class Patient extends Model
         static::creating(function (Patient $patient) {
             $patient->patient_number ??= 'TMC-'.now()->format('ymd').'-'.Str::upper(Str::random(5));
         });
+    }
+
+    public function visits(): HasMany
+    {
+        return $this->hasMany(Visitation::class);
     }
 
     public function createdBy(): BelongsTo

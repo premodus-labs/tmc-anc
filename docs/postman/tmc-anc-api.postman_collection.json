@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "TMC ANC API",
-    "description": "Auth, user admin and patients for the ANC clinic API.\n\nRun the whole collection top to bottom (Collection Runner) against a freshly seeded database: `php artisan migrate:fresh --seed` then `php artisan serve`. Each request has tests; logins save the bearer token automatically.",
+    "description": "Auth, user admin, patients and visits for the ANC clinic API.\n\nRun the whole collection top to bottom (Collection Runner) against a freshly seeded database: `php artisan migrate:fresh --seed` then `php artisan serve`. Each request has tests; logins save the bearer token automatically.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -69,6 +69,10 @@
     },
     {
       "key": "patient_id",
+      "value": ""
+    },
+    {
+      "key": "visit_id",
       "value": ""
     }
   ],
@@ -979,7 +983,486 @@
       ]
     },
     {
-      "name": "5. Deactivation and logout",
+      "name": "5. Visits and queue (as admin)",
+      "item": [
+        {
+          "name": "List checkpoints",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"starts at reception\", () => pm.expect(pm.response.json().data[0].code).to.eql(\"reception\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkpoints",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Check in patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"open at reception\", () => { pm.expect(d.status).to.eql(\"open\"); pm.expect(d.current_checkpoint.code).to.eql(\"reception\"); });",
+                  "pm.collectionVariables.set(\"visit_id\", d.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits"
+              ]
+            },
+            "description": "Opens a visit for the patient registered in folder 4.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"visit_type\": \"anc\",\n  \"priority\": \"routine\",\n  \"patient_consent\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Second check-in is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"patient_id error\", () => pm.expect(pm.response.json().errors).to.have.property(\"patient_id\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits"
+              ]
+            },
+            "description": "A patient can have only one open visit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"visit_type\": \"general\",\n  \"patient_consent\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Move to triage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"at triage\", () => pm.expect(d.current_checkpoint.code).to.eql(\"triage\"));",
+                  "pm.test(\"reception cleared in log\", () => { pm.expect(d.checkpoint_log).to.have.length(2); pm.expect(d.checkpoint_log[0].cleared_at).to.not.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}/move",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}",
+                "move"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkpoint\": \"triage\",\n  \"note\": \"Registration paid\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Record vitals",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"bp saved\", () => pm.expect(pm.response.json().data.bp_systolic).to.eql(118));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}/vitals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}",
+                "vitals"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temperature_c\": 36.8,\n  \"bp_systolic\": 118,\n  \"bp_diastolic\": 76,\n  \"pulse_bpm\": 82,\n  \"weight_kg\": 64.5\n}"
+            }
+          }
+        },
+        {
+          "name": "Vitals with no measurement are rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}/vitals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}",
+                "vitals"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Nothing measured\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Queue shows the visit at triage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const group = pm.response.json().data[0];",
+                  "pm.test(\"triage group\", () => pm.expect(group.checkpoint.code).to.eql(\"triage\"));",
+                  "pm.test(\"visit is in it\", () => pm.expect(group.visits.map(x => String(x.id))).to.include(String(pm.collectionVariables.get(\"visit_id\"))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/queue?checkpoint=triage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "queue"
+              ],
+              "query": [
+                {
+                  "key": "checkpoint",
+                  "value": "triage"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Move to consultation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}/move",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}",
+                "move"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkpoint\": \"consultation\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Show visit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"full history\", () => { pm.expect(d.checkpoint_log).to.have.length(3); pm.expect(d.vitals).to.have.length(1); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Complete visit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"completed and off the queue\", () => { pm.expect(d.status).to.eql(\"completed\"); pm.expect(d.current_checkpoint).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}/close",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}",
+                "close"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Closed visit cannot move",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}/move",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}",
+                "move"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkpoint\": \"pharmacy\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List the patient's visits",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"one completed visit\", () => { const d = pm.response.json().data; pm.expect(d).to.have.length(1); pm.expect(d[0].status).to.eql(\"completed\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits?patient_id={{patient_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits"
+              ],
+              "query": [
+                {
+                  "key": "patient_id",
+                  "value": "{{patient_id}}"
+                }
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Deactivation and logout",
       "item": [
         {
           "name": "Deactivate the new user",

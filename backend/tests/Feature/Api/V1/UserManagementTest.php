@@ -52,7 +52,7 @@ class UserManagementTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->postJson('/api/v1/auth/login', ['username' => 'mbanda', 'password' => 'Welcome123'])
             ->assertOk()
-            ->assertJsonPath('user.permissions', ['patient.create', 'patient.update', 'patient.view']);
+            ->assertJsonPath('user.permissions', collect(AccessControlSeeder::ROLES['receptionist'][1])->sort()->values()->all());
     }
 
     public function test_create_validates_input(): void

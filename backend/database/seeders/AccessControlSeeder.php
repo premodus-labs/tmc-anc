@@ -21,6 +21,10 @@ class AccessControlSeeder extends Seeder
         'patient.update' => 'Edit patient details',
         'user.view' => 'View staff logins and roles',
         'user.manage' => 'Create logins, assign roles, deactivate and reset passwords',
+        'visit.view' => 'View visits and the queue',
+        'visit.create' => 'Check patients in',
+        'visit.update' => 'Move visits between checkpoints and close them',
+        'vitals.record' => 'Record vital signs',
     ];
 
     /**
@@ -28,9 +32,18 @@ class AccessControlSeeder extends Seeder
      */
     public const ROLES = [
         'admin' => ['Administrator', ['*']],
-        'receptionist' => ['Receptionist', ['patient.view', 'patient.create', 'patient.update']],
-        'nurse_midwife' => ['Nurse / Midwife', ['patient.view', 'patient.update']],
-        'clinician' => ['Clinician', ['patient.view', 'patient.update']],
+        'receptionist' => ['Receptionist', [
+            'patient.view', 'patient.create', 'patient.update',
+            'visit.view', 'visit.create', 'visit.update',
+        ]],
+        'nurse_midwife' => ['Nurse / Midwife', [
+            'patient.view', 'patient.update',
+            'visit.view', 'visit.update', 'vitals.record',
+        ]],
+        'clinician' => ['Clinician', [
+            'patient.view', 'patient.update',
+            'visit.view', 'visit.update', 'vitals.record',
+        ]],
     ];
 
     public function run(): void

@@ -1,10 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CheckpointController;
 use App\Http\Controllers\Api\V1\PatientController;
+use App\Http\Controllers\Api\V1\QueueController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\StaffController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\VisitController;
+use App\Http\Controllers\Api\V1\VitalsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('v1.')->group(function () {
@@ -29,5 +33,16 @@ Route::prefix('v1')->name('v1.')->group(function () {
 
         // No destroy: patient records are kept, not deleted.
         Route::apiResource('patients', PatientController::class)->except('destroy');
+
+        // Visit flow. Visits are closed (completed or cancelled), never edited or deleted.
+        Route::get('checkpoints', [CheckpointController::class, 'index'])->name('checkpoints.index');
+        Route::get('queue', QueueController::class)->name('queue');
+        Route::apiResource('visits', VisitController::class)
+            ->only(['index', 'store', 'show'])
+            ->parameters(['visits' => 'visitation']);
+        Route::post('visits/{visitation}/move', [VisitController::class, 'move'])->name('visits.move');
+        Route::post('visits/{visitation}/close', [VisitController::class, 'close'])->name('visits.close');
+        Route::get('visits/{visitation}/vitals', [VitalsController::class, 'index'])->name('visits.vitals.index');
+        Route::post('visits/{visitation}/vitals', [VitalsController::class, 'store'])->name('visits.vitals.store');
     });
 });
