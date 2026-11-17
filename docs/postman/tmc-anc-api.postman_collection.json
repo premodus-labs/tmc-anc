@@ -1185,6 +1185,49 @@
           }
         },
         {
+          "name": "Escalate priority to emergency",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"priority changed, still at triage\", () => { pm.expect(d.priority).to.eql(\"emergency\"); pm.expect(d.current_checkpoint.code).to.eql(\"triage\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/visits/{{visit_id}}/priority",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visits",
+                "{{visit_id}}",
+                "priority"
+              ]
+            },
+            "description": "The patient deteriorates while waiting; bump them to emergency without moving checkpoints.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priority\": \"emergency\"\n}"
+            }
+          }
+        },
+        {
           "name": "Vitals with no measurement are rejected",
           "event": [
             {

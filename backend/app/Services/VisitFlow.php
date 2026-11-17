@@ -77,6 +77,23 @@ class VisitFlow
     }
 
     /**
+     * Escalate or downgrade a waiting patient's priority, e.g. when their
+     * condition changes while still in the queue. Does not touch the checkpoint.
+     */
+    public function reprioritize(Visitation $visit, string $priority): Visitation
+    {
+        return DB::transaction(function () use ($visit, $priority) {
+            $visit = Visitation::lockForUpdate()->findOrFail($visit->id);
+            $this->ensureOpen($visit);
+
+            $visit->priority = $priority;
+            $visit->save();
+
+            return $visit;
+        });
+    }
+
+    /**
      * End the visit: clear its checkpoint and take it off the queue.
      */
     public function close(Visitation $visit, string $status, AppUser $by, ?string $reason = null): Visitation

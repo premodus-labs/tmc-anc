@@ -41,6 +41,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
             ->only(['index', 'store', 'show'])
             ->parameters(['visits' => 'visitation']);
         Route::post('visits/{visitation}/move', [VisitController::class, 'move'])->name('visits.move');
+        Route::put('visits/{visitation}/priority', [VisitController::class, 'priority'])->name('visits.priority');
         Route::post('visits/{visitation}/close', [VisitController::class, 'close'])->name('visits.close');
         Route::get('visits/{visitation}/vitals', [VitalsController::class, 'index'])->name('visits.vitals.index');
         Route::post('visits/{visitation}/vitals', [VitalsController::class, 'store'])->name('visits.vitals.store');

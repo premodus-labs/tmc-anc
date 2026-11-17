@@ -52,6 +52,18 @@ class QueueTest extends TestCase
         $this->assertSame([$emergency->id, $urgent->id, $early->id, $late->id], $ids->all());
     }
 
+    public function test_escalating_priority_moves_the_patient_up_the_queue(): void
+    {
+        Sanctum::actingAs(AppUser::factory()->withPermissions('visit.view', 'visit.update')->create());
+        $early = Visitation::factory()->at('triage')->create(['arrived_at' => now()->subHour()]);
+        $deteriorating = Visitation::factory()->at('triage')->create(['arrived_at' => now()->subMinutes(10)]);
+
+        $this->putJson("/api/v1/visits/{$deteriorating->id}/priority", ['priority' => 'emergency'])->assertOk();
+
+        $ids = collect($this->getJson('/api/v1/queue?checkpoint=triage')->json('data.0.visits'))->pluck('id');
+        $this->assertSame([$deteriorating->id, $early->id], $ids->all());
+    }
+
     public function test_shows_patient_and_waiting_time(): void
     {
         $visit = Visitation::factory()->create();

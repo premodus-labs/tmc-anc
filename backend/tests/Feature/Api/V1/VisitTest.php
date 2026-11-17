@@ -179,6 +179,46 @@ class VisitTest extends TestCase
             ->assertJsonValidationErrors('visit');
     }
 
+    public function test_escalates_priority_without_moving_the_checkpoint(): void
+    {
+        $this->actingWith('visit.update');
+        $visit = Visitation::factory()->at('triage')->create(['priority' => 'routine']);
+
+        $this->putJson("/api/v1/visits/{$visit->id}/priority", ['priority' => 'emergency'])
+            ->assertOk()
+            ->assertJsonPath('data.priority', 'emergency')
+            ->assertJsonPath('data.current_checkpoint.code', 'triage')
+            ->assertJsonCount(1, 'data.checkpoint_log');
+    }
+
+    public function test_priority_rejects_invalid_value(): void
+    {
+        $this->actingWith('visit.update');
+        $visit = Visitation::factory()->create();
+
+        $this->putJson("/api/v1/visits/{$visit->id}/priority", ['priority' => 'whenever'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('priority');
+    }
+
+    public function test_closed_visit_cannot_be_reprioritized(): void
+    {
+        $this->actingWith('visit.update');
+        $visit = Visitation::factory()->closed()->create();
+
+        $this->putJson("/api/v1/visits/{$visit->id}/priority", ['priority' => 'urgent'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('visit');
+    }
+
+    public function test_priority_requires_permission(): void
+    {
+        $this->actingWith('visit.view');
+        $visit = Visitation::factory()->create();
+
+        $this->putJson("/api/v1/visits/{$visit->id}/priority", ['priority' => 'urgent'])->assertForbidden();
+    }
+
     public function test_move_requires_permission(): void
     {
         $this->actingWith('visit.view');

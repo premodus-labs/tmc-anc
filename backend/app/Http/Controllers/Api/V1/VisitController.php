@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\CloseVisitRequest;
 use App\Http\Requests\V1\MoveVisitRequest;
 use App\Http\Requests\V1\StoreVisitRequest;
+use App\Http\Requests\V1\UpdateVisitPriorityRequest;
 use App\Http\Resources\V1\VisitResource;
 use App\Models\Visitation;
 use App\Services\VisitFlow;
@@ -79,6 +80,17 @@ class VisitController extends Controller
             $request->boolean('skipped'),
             $request->validated('note'),
         );
+
+        return $this->detail($visit);
+    }
+
+    /**
+     * Change the priority of a waiting patient, e.g. an escalation at triage.
+     * Does not move the checkpoint.
+     */
+    public function priority(UpdateVisitPriorityRequest $request, Visitation $visitation): VisitResource
+    {
+        $visit = $this->flow->reprioritize($visitation, $request->validated('priority'));
 
         return $this->detail($visit);
     }
