@@ -4,7 +4,7 @@ For a step-by-step walkthrough of auth and registering logins, see
 [../testing/postman-guide.md](../testing/postman-guide.md).
 
 `tmc-anc-api.postman_collection.json` exercises auth, user administration and
-patients end to end. Every request has tests, and login requests save the
+patients and visits end to end. Every request has tests, and login requests save the
 bearer token for the requests after them.
 
 ## Run it
@@ -37,7 +37,8 @@ npx newman run docs/postman/tmc-anc-api.postman_collection.json
 | 2. User admin | List roles and free staff; create a login; search; change roles; reset password; admin cannot deactivate themselves (403) |
 | 3. Permissions | Log in as the new nurse/midwife: can list patients, cannot register one or list users (403); changes own password |
 | 4. Patients | Register, show, update and search a patient as admin |
-| 5. Deactivation and logout | Deactivating the nurse kills their token at once and blocks login; logout revokes the admin token |
+| 5. Visits and queue | Check the patient in; a second check-in is rejected (422); move to triage, record vitals, see them in the triage queue; escalate priority to emergency and see it jump the queue; move on, complete the visit; a closed visit cannot move |
+| 6. Deactivation and logout | Deactivating the nurse kills their token at once and blocks login; logout revokes the admin token |
 
 Each run creates a new user from one of the seeded staff without a login. After
 five runs there are none left; run `php artisan migrate:fresh --seed` again.
@@ -64,6 +65,11 @@ All seeded logins use the password `password`:
 | GET | `/api/v1/patients`, `/patients/{id}` | `patient.view` |
 | POST | `/api/v1/patients` | `patient.create` |
 | PATCH | `/api/v1/patients/{id}` | `patient.update` |
+| GET | `/api/v1/checkpoints`, `/queue`, `/visits`, `/visits/{id}`, `/visits/{id}/vitals` | `visit.view` |
+| POST | `/api/v1/visits` (check in) | `visit.create` |
+| POST | `/api/v1/visits/{id}/move`, `/visits/{id}/close` | `visit.update` |
+| PUT | `/api/v1/visits/{id}/priority` | `visit.update` |
+| POST | `/api/v1/visits/{id}/vitals` | `vitals.record` |
 
 Full request and response shapes are in the generated OpenAPI docs at
 `http://127.0.0.1:8000/docs/api`.
